@@ -3,7 +3,7 @@ package Mojolicious::Plugin::DataTables::SSP::Column;
 
 use Mojo::Base -base;
 
-our $VERSION = '1.02';
+our $VERSION = '1.03';
 
 has 'data';
 has 'database';

@@ -10,7 +10,7 @@ use Mojolicious::Plugin::DataTables::SSP::Column;
 use Mojolicious::Plugin::DataTables::SSP::Params;
 use Mojolicious::Plugin::DataTables::SSP::Results;
 
-our $VERSION = '1.02';
+our $VERSION = '1.03';
 
 sub register {
 
@@ -83,7 +83,13 @@ sub _dt_ssp {
     push @db_columns, @columns;
 
     if ($where) {
-        push @db_filters, $where;
+        if (ref $where eq 'ARRAY') {
+            my ($where_sql, @where_bind) = @{$where};
+            push @db_filters, $where_sql;
+            push @db_bind, @where_bind;
+        } else {
+            push @db_filters, $where;
+        }
     }
 
     # Column filter
@@ -481,6 +487,27 @@ The C<searchable> flag enable or disable a filter for specified column.
             ...
         }
     ]
+
+=head2 Where condition
+
+Use the C<where> option to filter the table:
+
+    $c->datatable->ssp(
+        table   => 'users',
+        db      => $db,
+        where   => 'status = 1',
+        options => [ ... ]
+    );
+
+It's possible to use array (C<[ where, bind_1, bind_2, ... ]>) to bind values:
+
+    $c->datatable->ssp(
+        table   => 'users',
+        db      => $db,
+        where   => [ 'status = ?', 'active' ],
+        options => [ ... ]
+    );
+
 
 =head1 SEE ALSO
 
