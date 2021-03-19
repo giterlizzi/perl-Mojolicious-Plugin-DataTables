@@ -2,7 +2,7 @@ package Mojolicious::Plugin::DataTables::SSP::Params;
 
 use Mojo::Base -base;
 
-our $VERSION = '2.00';
+our $VERSION = '2.01';
 
 has 'columns';
 has 'draw';

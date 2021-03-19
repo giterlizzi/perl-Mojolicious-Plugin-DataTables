@@ -13,7 +13,7 @@ use Mojolicious::Plugin::DataTables::SSP::Column;
 use Mojolicious::Plugin::DataTables::SSP::Params;
 use Mojolicious::Plugin::DataTables::SSP::Results;
 
-our $VERSION = '2.00';
+our $VERSION = '2.01';
 
 sub register {
 
@@ -97,7 +97,7 @@ sub _dt_ssp {
         }
     }
 
-    my $options = {
+    my $abstract = {
         'where' => {
             '-and' => [],
             '-or'  => [],
@@ -113,11 +113,11 @@ sub _dt_ssp {
             foreach (@where_bind) {
                 $where_stmt =~ s/\?/'$_'/;    # TODO improve
             }
-            push @{ $options->{where}->{'-and'} }, { '-bool' => $where_stmt };
-            push @{ $options->{filter} },          { '-bool' => $where_stmt };
+            push @{ $abstract->{where}->{'-and'} }, { '-bool' => $where_stmt };
+            push @{ $abstract->{filter} },          { '-bool' => $where_stmt };
         } else {
-            push @{ $options->{where}->{'-and'} }, { '-bool' => $where };
-            push @{ $options->{filter} },          { '-bool' => $where };
+            push @{ $abstract->{where}->{'-and'} }, { '-bool' => $where };
+            push @{ $abstract->{filter} },          { '-bool' => $where };
         }
     }
 
@@ -126,9 +126,10 @@ sub _dt_ssp {
         if ( $_->database && $_->searchable != 0 && $_->search->{value} ) {
 
             if ( $_->search->{regex} ) {
-                push @{ $options->{where}->{'-and'} }, { $_->database => { $regexp_operator => $_->search->{value} } };
+                push @{ $abstract->{where}->{'-and'} }, { $_->database => { $regexp_operator => $_->search->{value} } };
             } else {
-                push @{ $options->{where}->{'-and'} }, { $_->database => { -like => '%' . $_->search->{value} . '%' } };
+                push @{ $abstract->{where}->{'-and'} },
+                    { $_->database => { -like => '%' . $_->search->{value} . '%' } };
             }
 
         }
@@ -140,10 +141,10 @@ sub _dt_ssp {
             if ( $_->database && $_->searchable != 0 ) {
 
                 if ( $ssp->search->{regex} ) {
-                    push @{ $options->{where}->{'-or'} },
+                    push @{ $abstract->{where}->{'-or'} },
                         { $_->database => { $regexp_operator => $ssp->search->{value} } };
                 } else {
-                    push @{ $options->{where}->{'-or'} },
+                    push @{ $abstract->{where}->{'-or'} },
                         { $_->database => { -like => '%' . $ssp->search->{value} . '%' } };
                 }
             }
@@ -157,14 +158,14 @@ sub _dt_ssp {
 
         foreach my $column ( keys %{$order} ) {
             my $clausole = $order->{$column};
-            push @{ $options->{order} }, { "-$clausole" => $column };
+            push @{ $abstract->{order} }, { "-$clausole" => $column };
         }
     }
 
-    delete $options->{where}->{'-and'} if ( scalar @{ $options->{'where'}->{'-and'} } < 1 );
-    delete $options->{where}->{'-or'}  if ( scalar @{ $options->{'where'}->{'-or'} } < 1 );
+    delete $abstract->{where}->{'-and'} if ( scalar @{ $abstract->{where}->{'-and'} } < 1 );
+    delete $abstract->{where}->{'-or'}  if ( scalar @{ $abstract->{where}->{'-or'} } < 1 );
 
-    my ( $stmt, @bind ) = $sql->abstract->select( $table, \@columns, $options->{where}, $options->{order} );
+    my ( $stmt, @bind ) = $sql->abstract->select( $table, \@columns, $abstract->{where}, $abstract->{order} );
 
     $stmt .= sprintf ' LIMIT %s OFFSET %s', $ssp->length, $ssp->start;    # TODO
 
@@ -200,8 +201,8 @@ sub _dt_ssp {
 
     }
 
-    my ( $stmt_total,  @bind_total )  = $sql->abstract->select( $table, [ \'COUNT(*) AS tot' ], $options->{filter} );
-    my ( $stmt_filter, @bind_filter ) = $sql->abstract->select( $table, [ \'COUNT(*) AS tot' ], $options->{where} );
+    my ( $stmt_total,  @bind_total )  = $sql->abstract->select( $table, [ \'COUNT(*) AS tot' ], $abstract->{filter} );
+    my ( $stmt_filter, @bind_filter ) = $sql->abstract->select( $table, [ \'COUNT(*) AS tot' ], $abstract->{where} );
 
     if ($debug) {
         $log->debug("Query Total: $stmt_total");
@@ -218,9 +219,9 @@ sub _dt_ssp {
     }
 
     my $ssp_results = Mojolicious::Plugin::DataTables::SSP::Results->new(
-        draw             => $ssp->draw,
-        data             => \@results,
-        records_total    => $total,
+        draw           => $ssp->draw,
+        data           => \@results,
+        records_total  => $total,
         records_filtered => $filtered
     );
 
